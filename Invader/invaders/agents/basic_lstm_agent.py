@@ -19,21 +19,15 @@ class LstmAgent:
         self.graph = tf.Graph()
         with self.graph.as_default():
             # Parameters:
+            input_weights = tf.Variable(tf.truncated_normal([self.vocabulary_size, 4*self.num_nodes], -0.1, 0.1))
+            output_weights = tf.Variable(tf.truncated_normal([self.num_nodes, 4 * self.num_nodes], -0.1, 0.1))
             # Input gate: input, previous output, and bias
-            in_input = tf.Variable(tf.truncated_normal([self.vocabulary_size, self.num_nodes], -0.1, 0.1))
-            in_p_out = tf.Variable(tf.truncated_normal([self.num_nodes, self.num_nodes], -0.1, 0.1))
             in_bias = tf.Variable(tf.zeros([1, self.num_nodes]))
             # Forget gate: input, previous output, and bias
-            fgt_input = tf.Variable(tf.truncated_normal([self.vocabulary_size, self.num_nodes], -0.1, 0.1))
-            fgt_p_out = tf.Variable(tf.truncated_normal([self.num_nodes, self.num_nodes], -0.1, 0.1))
             fgt_bias = tf.Variable(tf.zeros([1, self.num_nodes]))
             # Memory cell: input, state and bias
-            mem_input = tf.Variable(tf.truncated_normal([self.vocabulary_size, self.num_nodes], -0.1, 0.1))
-            mem_state = tf.Variable(tf.truncated_normal([self.num_nodes, self.num_nodes], -0.1, 0.1))
             mem_bias = tf.Variable(tf.zeros([1, self.num_nodes]))
             # Output gate: input, previous output, and bias
-            out_input = tf.Variable(tf.truncated_normal([self.vocabulary_size, self.num_nodes], -0.1, 0.1))
-            out_p_out = tf.Variable(tf.truncated_normal([self.num_nodes, self.num_nodes], -0.1, 0.1))
             out_bias = tf.Variable(tf.zeros([1, self.num_nodes]))
             # Variables saving state across unrollings
             self.saved_output = tf.Variable(tf.zeros([self.batch_size, self.num_nodes]), trainable=False)
@@ -42,16 +36,24 @@ class LstmAgent:
             self.w = tf.Variable(tf.truncated_normal([self.num_nodes, self.vocabulary_size], -0.1, 0.1))
             self.b = tf.Variable(tf.zeros([self.vocabulary_size]))
 
-            def lstm_cell(input, output, state):
+            def lstm_cell(lstm_input, lstm_output, lstm_state):
                 """Create a LSTM cell. See e.g.: http://arxiv.org/pdf/1402.1128v1.pdf
                     Note that in this formulation, we omit the various connections between the
                     previous state and the gates."""
-                input_gate = tf.sigmoid(tf.matmul(input, in_input) + tf.matmul(output, in_p_out) + in_bias)
-                forget_gate = tf.sigmoid(tf.matmul(input, fgt_input) + tf.matmul(output, fgt_p_out) + fgt_bias)
-                update = tf.matmul(input, mem_input) + tf.matmul(output, mem_state) + mem_bias
-                state = forget_gate * state + input_gate * tf.tanh(update)
-                output_gate = tf.sigmoid(tf.matmul(input, out_input) + tf.matmul(output, out_p_out) + out_bias)
-                return output_gate * tf.tanh(state), state
+
+                ifmo_input = tf.matmul(lstm_input, input_weights)
+                ifmo_output = tf.matmul(lstm_output, output_weights)
+
+                fidx = self.num_nodes
+                uidx = 2 * self.num_nodes
+                oidx = 3 * self.num_nodes
+                input_gate = tf.sigmoid(ifmo_input[:, :fidx] + ifmo_output[:, :fidx] + in_bias)
+                forget_gate = tf.sigmoid(ifmo_input[:, fidx:uidx] + ifmo_output[:, fidx:uidx] + fgt_bias)
+                update = ifmo_input[:, uidx:oidx] + ifmo_output[:, uidx:oidx] + mem_bias
+                output_gate = tf.sigmoid(ifmo_input[:, oidx:] + ifmo_output[:, oidx:] + out_bias)
+
+                lstm_state = forget_gate * lstm_state + input_gate * tf.tanh(update)
+                return output_gate * tf.tanh(lstm_state), lstm_state
 
             # Input data
             self.train_data = list()
@@ -72,7 +74,7 @@ class LstmAgent:
             with tf.control_dependencies([self.saved_output.assign(output),
                                           self.saved_state.assign(state)]):
                 #Classifier
-                logits = tf.nn.xw_plus_b(tf.concat(outputs, 0), self.w, self.b)
+                logits = tf.nn.xw_plus_b(tf.concat(outputs, 0), self.w, self.b)  # Logit is a function that maps probabilities ([0, 1]) to R ((-inf, inf))
                 self.loss = tf.reduce_mean(
                     tf.nn.softmax_cross_entropy_with_logits(labels=tf.concat(train_labels, 0), logits=logits)
                 )
@@ -204,6 +206,7 @@ def id2char(dictid):
         return ' '
 
 
+# Turn each character into a one-hot encoding
 class BatchGenerator(object):
     def __init__(self, text, batch_size, num_unrollings):
         self._text = text
