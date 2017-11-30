@@ -2,6 +2,9 @@ import os
 import csv
 from tqdm import tqdm
 
+from Invader.invaders.agent import Agent
+from Invader.invaders.environment import Environment
+
 
 class Simulator(object):
     """Handles simulation + logging"""
@@ -30,7 +33,6 @@ class Simulator(object):
         testing = False
         total_trials = 1
         trial = 1
-        parameters = {}
 
         while True:
             if not testing:
@@ -46,19 +48,16 @@ class Simulator(object):
                 if trial > n_test:
                     break
 
-            state = self.env.reset()
+            self.env.reset(testing)
             time = 0.0
-            net_reward = 0.0
-            success = False
 
             print("trial {}:".format(trial))
             for _ in range(n_frames):
                 try:
                     time += 1.0
-                    self.env.render()
-                    action = self.env.action_space.sample()
-                    state, reward, done, info = self.env.step(action)
-                    net_reward += reward
+                    if self.display:
+                        self.env.render()
+                    state, reward, done, info = self.env.step()
 
                 except KeyboardInterrupt:
                     self.quit = True
@@ -68,18 +67,16 @@ class Simulator(object):
                     if self.quit or done:
                         break
 
-            parameters["a"] = self.agent.alpha
-            parameters["e"] = self.agent.epsilon
             if self.log_metrics:
                 self.log_writer.writerow({
                     'trial': trial,
-                    'testing': testing,
-                    'parameters': parameters,
-                    'initial_time': 0.0,
-                    'final_time': time,
-                    'net_reward': net_reward,
-                    'actions': 0,
-                    'success': success
+                    'testing': self.env.trial_data['testing'],
+                    'parameters': self.env.trial_data['parameters'],
+                    'initial_time': self.env.trial_data['initial_time'],
+                    'final_time': self.env.trial_data['final_time'],
+                    'net_reward': self.env.trial_data['net_reward'],
+                    'actions': self.env.trial_data['actions'],
+                    'success': self.env.trial_data['success']
                 })
 
             if self.quit:
@@ -90,3 +87,13 @@ class Simulator(object):
 
         if self.log_metrics:
             self.log_file.close()
+
+# To do: 3 game loops: testing/training, trials, game frame loops
+
+if __name__=="__main__":
+    env = Environment()
+    agent = Agent(env)
+    env.set_agent(agent)
+    sim = Simulator(env, display=True, log_metrics=False, optimized=False)
+
+    sim.run(n_test=1)
