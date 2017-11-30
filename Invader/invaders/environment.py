@@ -30,16 +30,14 @@ class Environment:
         self.trial_data['success'] = False
 
     def step(self):
-        # self.agent.run()
         action = self.agent.update()
-        state, reward, terminated, info = self.env.step(action)
-        self.env.render()
+        state, reward, is_terminated, info = self.env.step(action)
 
         self.trial_data['final_time'] += 1
         self.trial_data['net_reward'] += reward
         self.trial_data['success'] = False
 
-        return state, reward, terminated, info
+        return is_terminated
 
     def render(self):
         self.env.render()

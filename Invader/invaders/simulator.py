@@ -30,63 +30,66 @@ class Simulator(object):
 
     def run(self, tolerance=0.05, n_test=0, n_frames=3000):
         self.quit = False
-        testing = False
+        is_testing = False
         total_trials = 1
         trial = 1
 
         while True:
-            if not testing:
-                if total_trials > 20:
-                    if self.agent.learning:
-                        if self.agent.epsilon < tolerance:
-                            testing = True
-                            trial = 1
-                    else:
-                        testing = True
-                        trial = 1
+            if not is_testing:
+                is_testing, trial = self.determine_testing_status(trial, total_trials, tolerance)
             else:
                 if trial > n_test:
                     break
 
-            self.env.reset(testing)
+            self.env.reset(is_testing)
             time = 0.0
-
             print("trial {}:".format(trial))
             for _ in range(n_frames):
                 try:
                     time += 1.0
                     if self.display:
                         self.env.render()
-                    state, reward, done, info = self.env.step()
+                    is_terminated = self.env.step()
 
                 except KeyboardInterrupt:
                     self.quit = True
                 finally:
                     if time >= (n_frames-1):
                         success = True
-                    if self.quit or done:
+                    if self.quit or is_terminated:
                         break
-
-            if self.log_metrics:
-                self.log_writer.writerow({
-                    'trial': trial,
-                    'testing': self.env.trial_data['testing'],
-                    'parameters': self.env.trial_data['parameters'],
-                    'initial_time': self.env.trial_data['initial_time'],
-                    'final_time': self.env.trial_data['final_time'],
-                    'net_reward': self.env.trial_data['net_reward'],
-                    'actions': self.env.trial_data['actions'],
-                    'success': self.env.trial_data['success']
-                })
+            self.log_trial(trial)
 
             if self.quit:
                 break
-
             total_trials += 1
             trial += 1
 
         if self.log_metrics:
             self.log_file.close()
+
+    def determine_testing_status(self, trial, total_trials, tolerance):
+        if total_trials > 20:
+            if self.agent.learning:
+                if self.agent.epsilon < tolerance:
+                    return True, 1
+            else:
+                return True, 1
+
+        return False, trial
+
+    def log_trial(self, trial):
+        if self.log_metrics:
+            self.log_writer.writerow({
+                'trial': trial,
+                'testing': self.env.trial_data['testing'],
+                'parameters': self.env.trial_data['parameters'],
+                'initial_time': self.env.trial_data['initial_time'],
+                'final_time': self.env.trial_data['final_time'],
+                'net_reward': self.env.trial_data['net_reward'],
+                'actions': self.env.trial_data['actions'],
+                'success': self.env.trial_data['success']
+            })
 
 # To do: 3 game loops: testing/training, trials, game frame loops
 
@@ -94,6 +97,6 @@ if __name__=="__main__":
     env = Environment()
     agent = Agent(env)
     env.set_agent(agent)
-    sim = Simulator(env, display=True, log_metrics=False, optimized=False)
+    sim = Simulator(env, display=False, log_metrics=False, optimized=False)
 
     sim.run(n_test=1)
