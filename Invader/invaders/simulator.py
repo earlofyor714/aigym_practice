@@ -8,7 +8,7 @@ from Invader.invaders.environment import Environment
 
 class Simulator(object):
     """Handles simulation + logging"""
-    def __init__(self, env, display=True, log_metrics=False, optimized=False):
+    def __init__(self, env, display=True, log_metrics=False, optimized=False, filename="sim"):
         self.env = env
         self.agent = env.agent
         self.log_metrics = log_metrics
@@ -19,9 +19,11 @@ class Simulator(object):
         if self.log_metrics:
             if self.agent.learning:
                 if self.optimized:
-                    self.log_filename = os.path.join("../logs", "sim_improved-learning.csv")
+                    self.log_filename = os.path.join("../logs", filename+"_improved-learning.csv")
+                else:
+                    self.log_filename = os.path.join("../logs", filename+"_default-learning.csv")
             else:
-                self.log_filename = os.path.join("../logs", "sim_basic.csv")
+                self.log_filename = os.path.join("../logs", filename+"_basic.csv")
 
             self.log_fields = ['trial', 'testing', 'parameters', 'initial_time', 'final_time', 'net_reward', 'actions', 'success']
             self.log_file = open(self.log_filename, 'w', newline='')
@@ -42,22 +44,24 @@ class Simulator(object):
                     break
 
             self.env.reset(is_testing)
-            time = 0.0
             print("trial {}:".format(trial))
-            for _ in range(n_frames):
-                try:
-                    time += 1.0
-                    if self.display:
-                        self.env.render()
-                    is_terminated = self.env.step()
 
-                except KeyboardInterrupt:
-                    self.quit = True
-                finally:
-                    if time >= (n_frames-1):
-                        success = True
-                    if self.quit or is_terminated:
-                        break
+            # time = 0.0
+            # for _ in range(n_frames):
+            #     try:
+            #         time += 1.0
+            #         if self.display:
+            #             self.env.render()
+            #         self.env.step()
+            #     except KeyboardInterrupt:
+            #         self.quit = True
+            #     finally:
+            #         if time >= (n_frames-1):
+            #             self.env.trial_data['success'] = True
+            #         if self.quit or self.env.done:
+            #             break
+            self.quit = self.env.step(n_frames, is_display=self.display)
+
             self.log_trial(trial)
 
             if self.quit:
@@ -94,9 +98,9 @@ class Simulator(object):
 # To do: 3 game loops: testing/training, trials, game frame loops
 
 if __name__=="__main__":
-    env = Environment()
-    agent = Agent(env)
-    env.set_agent(agent)
-    sim = Simulator(env, display=False, log_metrics=False, optimized=False)
+    environment = Environment()
+    agent = Agent(environment)
+    environment.set_agent(agent)
+    sim = Simulator(environment, display=False, log_metrics=True, optimized=False)
 
     sim.run(n_test=1)

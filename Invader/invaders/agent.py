@@ -1,6 +1,4 @@
-import gym
-
-#from Invader.invaders.simulator import Simulator
+import random
 
 
 class Agent(object):
@@ -12,24 +10,44 @@ class Agent(object):
         self.epsilon = epsilon
         self.alpha = alpha
 
-    def update(self):
-        return self.env.get_action_space().sample()
+        self.timer = 1.0
 
-    def reset(self):
-        pass
+    def reset(self, testing=False):
+        if testing:
+            self.epsilon = 0
+            self.alpha = 0
+            return
+        self.epsilon = 1.0 / (self.timer * self.timer)
+        self.timer += 0.001
+
+    def update(self):
+        state = self.build_state()
+        action = self.choose_action(state)
+        next_state, reward, is_terminated, _ = self.env.act(action)
+        self.learn(state, action, reward, next_state)
+        return next_state, reward, is_terminated
+
+    def build_state(self):
+        state = self.env.current_state
+        return state
+
+    def choose_action(self, state):
+        action = None
+        x = random.uniform(0, 1)
+        if x < self.epsilon or not self.learning:
+            action = self.env.get_action_space().sample()
+        else:
+            # TODO: choose initial action via AI logic
+            action = self.env.get_action_space().sample()
+        return action
+
+    def learn(self, state, action, reward, next_state):
+        if self.learning:
+            # TODO: add support for AI logic here
+            return
+        return
 
     def get_state(self):
         return self.mem_state
 
-#def run():
-#    env = gym.make("SpaceInvaders-v0")
-#    # env = gym.make("Breakout-v0")
-#    observation = env.reset()
-#
-#    agent = Agent(env)
-#    sim = Simulator(env, display=True, log_metrics=False, optimized=False)
-#    sim.run()
-
-
-#if __name__ == "__main__":
-#    run()
+# TODO: update and verify jupyter notebook

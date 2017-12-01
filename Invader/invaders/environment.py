@@ -9,6 +9,8 @@ class Environment:
         # input_size = 210*160
         # self.agent = LstmAgent(self.env, input_size)
         self.agent = None
+        self.current_state = None
+        self.done = False
         self.trial_data = {
             'testing': False,
             'parameters': dict(),
@@ -20,7 +22,7 @@ class Environment:
         }
 
     def reset(self, testing=False):
-        self.env.reset()
+        self.current_state = self.env.reset()
 
         self.trial_data['testing'] = testing
         self.trial_data['parameters'] = {'e': self.agent.epsilon, 'a': self.agent.alpha}
@@ -29,15 +31,30 @@ class Environment:
         self.trial_data['net_reward'] = 0.0
         self.trial_data['success'] = False
 
-    def step(self):
-        action = self.agent.update()
+    def step(self, n_frames, is_display=True):
+        is_quit = False
+        time = 0.0
+        for _ in range(n_frames):
+            try:
+                time += 1.0
+                if is_display:
+                    self.env.render()
+                self.current_state, reward, self.done = self.agent.update()
+                self.trial_data['final_time'] += 1
+                self.trial_data['net_reward'] += reward
+            except KeyboardInterrupt:
+                is_quit = True
+            finally:
+                if time >= (n_frames - 1):
+                    self.trial_data['success'] = True
+                if is_quit or self.done:
+                    return is_quit
+        # self.current_state, reward, self.done = self.agent.update()
+        return is_quit
+
+    def act(self, action):
         state, reward, is_terminated, info = self.env.step(action)
-
-        self.trial_data['final_time'] += 1
-        self.trial_data['net_reward'] += reward
-        self.trial_data['success'] = False
-
-        return is_terminated
+        return state, reward, is_terminated, info
 
     def render(self):
         self.env.render()
