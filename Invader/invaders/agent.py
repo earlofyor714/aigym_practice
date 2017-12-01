@@ -49,5 +49,3 @@ class Agent(object):
 
     def get_state(self):
         return self.mem_state
-
-# TODO: update and verify jupyter notebook
