@@ -104,8 +104,8 @@ def plot_trials(csv):
 
 
 def append_features_to(data):
-    average_reward = pd.rolling_mean((data['net_reward'] / (data['final_time'] - data['initial_time'])), window=10)
-    reliability_rate = pd.rolling_mean((data['success'] * 100), window=10)
+    average_reward = (data['net_reward'] / (data['final_time'] - data['initial_time'])).rolling(window=10).mean()
+    reliability_rate = (data['success'] * 100).rolling(window=10).mean()
     epsilon = data['parameters'].apply(lambda x: ast.literal_eval(x)['e'])
     alpha = data['parameters'].apply(lambda x: ast.literal_eval(x)['a'])
 
