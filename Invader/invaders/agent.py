@@ -1,10 +1,15 @@
 import random
+import numpy as np
+
+from Invader.invaders.agents.practice_lstm_agent import LstmAgent
 
 
 class Agent(object):
     def __init__(self, env, learning=False, epsilon=1.0, alpha=0.5):
         self.env = env
         self.mem_state = None
+        input_size = 160*210
+        self.ai = LstmAgent(input_size)
 
         self.learning = learning
         self.epsilon = epsilon
@@ -28,7 +33,7 @@ class Agent(object):
         return next_state, reward, is_terminated
 
     def build_state(self):
-        state = self.env.current_state
+        state = np.divide(np.mean(self.env.current_state, axis=2), 256)
         return state
 
     def choose_action(self, state):
@@ -46,6 +51,10 @@ class Agent(object):
             # TODO: add support for AI logic here
             return
         return
+
+    def tensorflow_update(self, state, tolerance, n_frames, is_display=True):
+        self.epsilon, is_quit = self.ai.tensorflow_learn(state, self.env, tolerance, n_frames, is_display)
+        return is_quit
 
     def get_state(self):
         return self.mem_state

@@ -1,7 +1,5 @@
 import gym
 
-from Invader.invaders.agents.practice_lstm_agent import LstmAgent
-
 
 class Environment:
     def __init__(self):
@@ -50,6 +48,12 @@ class Environment:
                 if is_quit or self.done:
                     return is_quit
         # self.current_state, reward, self.done = self.agent.update()
+        return is_quit
+
+    """Tensorflow requires everything be done in a single session, which forces game logic onto the agent :("""
+    def tensorflow_step(self, tolerance, n_frames, is_display=True):
+        self.reset(False)
+        is_quit = self.agent.tensorflow_update(self.current_state, tolerance, n_frames, is_display)
         return is_quit
 
     def act(self, action):
