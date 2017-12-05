@@ -137,3 +137,5 @@ def calculate_reliability(data):
             return ("D", "#EEC700")
         else:
             return ("F", "red")
+
+# TODO: graph out avg time of runs, and high scores

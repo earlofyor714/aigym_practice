@@ -6,16 +6,20 @@ import tensorflow as tf
 # Output size: 6
 
 class LstmAgent(object):
-    def __init__(self, input_size, epsilon=1.0, learning_rate=0.5, num_nodes=64, batch_size=1, num_unrollings=10):
-        self.num_nodes=num_nodes
-        self.batch_size=batch_size
-        self.num_rollings=num_unrollings
+    def __init__(self, input_size, graph=None, alpha=1.0, learning_rate=0.5,
+                 num_nodes=64, batch_size=1):
+        self.num_nodes = num_nodes
+        self.batch_size = batch_size
         self.input_size = input_size
         self.learning_rate = learning_rate
-        self.epsilon = epsilon
+        self.alpha = alpha
         self.output_size = 6
 
-        self.graph = tf.Graph()
+        if graph:
+            self.graph = graph
+        else:
+            self.graph = tf.Graph()
+
         with self.graph.as_default():
             # Inner workings of LSTM
             self.lstm_input = tf.placeholder(shape=[self.batch_size, self.input_size], dtype=tf.float32)
@@ -65,68 +69,23 @@ class LstmAgent(object):
                 loss = tf.reduce_sum(tf.square(self.nextQ - self.Qout))
             self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(loss)
 
-    """Due to Tensorflow session's nature, contains game logic + AI"""
-    def tensorflow_learn(self, state, env, tolerance, n_frames, is_display=True):
-        with tf.Session(graph=self.graph) as sess:
-            tf.global_variables_initializer().run()
-            is_quit = False
-            time = 1.0
-            alpha = 1.0
-            current_state = self.build_state(state)
+    def choose_action(self, current_state, session):
+        a, allQ = session.run([self.predict, self.Qout], feed_dict={self.lstm_input: current_state})
+        return a[0], allQ
 
-            while self.epsilon > tolerance:
-                print("epsilon: {}".format(self.epsilon))
-                for _ in range(n_frames):
-                    try:
-                        # From state, get action
-                        a, allQ = sess.run([self.predict, self.Qout], feed_dict={self.lstm_input: current_state})
-                        if np.random.rand(1) < self.epsilon:
-                            a[0] = env.get_action_space().sample()
-                        # From action, get next state and reward
-                        next_state, reward, env.done, _ = env.act(a[0])
-                        next_state = self.build_state(next_state)
-                        # From next state, get most probable next action
-                        Q1 = sess.run([self.Qout], feed_dict={self.lstm_input: next_state})
-                        maxQ1 = np.max(Q1)
-                        targetQ = allQ
-                        targetQ[0, a[0]] = reward + alpha * maxQ1
-                        _, mem_state = sess.run([self.optimizer, self.saved_state],
-                                                feed_dict={self.lstm_input: current_state, self.nextQ: targetQ})
-                        current_state = next_state
-
-                        env.trial_data['final_time'] += 1
-                        env.trial_data['net_reward'] += reward
-                    except KeyboardInterrupt:
-                        is_quit = True
-                    finally:
-                        if time >= (n_frames-1):
-                            env.trial_data['success'] = True
-                        if is_quit or env.done:
-                            break
-                    if is_display:
-                        env.render()
-                self.epsilon = 1.0 / (time * time)
-                # time += 0.001
-                time += 1.0
-                env.reset(False)
-
-        return self.epsilon, is_quit
-
-    def choose_action(self, state):
-        with tf.Session(graph=self.graph) as sess:
-            tf.global_variables_initializer().run()
-            current_state = self.build_state(state)
-            a, allQ = sess.run([self.predict, self.Qout], feed_dict={self.lstm_input: current_state})
-            return a[0]
-
-    def build_state(self, in_state):
-        mean_state = np.mean(in_state, axis=2)
-        matrix_state = np.divide(mean_state, 256)
-        state = [matrix_state.flatten()]
-        return state
-
+    def learn(self, state, action, allQ, reward, next_state, sess=None):
+        if not sess:
+            return
+        Q1 = sess.run([self.Qout], feed_dict={self.lstm_input: next_state})
+        maxQ1 = np.max(Q1)
+        targetQ = allQ
+        targetQ[0, action] = reward + self.alpha * maxQ1
+        _, mem_state = sess.run([self.optimizer, self.saved_state],
+                                feed_dict={self.lstm_input: state, self.nextQ: targetQ})
 
 # Actions:
 #   0 = stop/left, 1 = fire, 2 = right, 3 = stop/left, 4 = right+fire, 5 = left+fire
 
-# TODO: move training loop into here; refactor testing loop within simulator
+# TODO: save weights after training to save time
+
+# TODO: randomize the action returned if allQ has multiple values with same value (i.e. fix self.predict)

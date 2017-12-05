@@ -47,8 +47,7 @@ class Simulator(object):
 
             self.env.reset(is_testing)
             print("trial {}:".format(trial))
-            # self.quit = self.env.step(n_frames, is_display=self.display)
-            self.quit = self.env.tensorflow_step(n_frames, is_display=self.display)
+            self.quit = self.env.step(n_frames, is_display=self.display)
             self.log_trial(trial)
 
             if self.quit:
@@ -60,14 +59,37 @@ class Simulator(object):
         final_time = time.time()
         print("Total time: {} seconds".format(final_time - start_time))
 
-    def tensorflow_run(self, tolerance=0.05, n_test=0, n_frames=3000):
+    def tensorflow_test(self, graph=None, tolerance=0.05, n_test=0, n_frames=3000):
+        import tensorflow as tf
+
+        if not graph:
+            return
+
+        self.quit = False
+        is_testing = False
+        total_trials = 1
+        trial = 1
         start_time = time.time()
 
-        print("training set:")
-        self.quit = self.env.tensorflow_step(tolerance, n_frames, is_display=self.display)
+        with tf.Session(graph=graph) as sess:
+            tf.global_variables_initializer().run()
+            while True:
+                if not is_testing:
+                    is_testing, trial = self.determine_testing_status(trial, total_trials, tolerance)
+                else:
+                    self.display = True
+                    if trial > n_test:
+                        break
 
-        print("validation set:")
+                self.env.reset(is_testing)
+                print("trial {}, epsilon {}:".format(trial, self.agent.epsilon))
+                self.quit = self.env.step(n_frames, session=sess, is_display=self.display)
+                self.log_trial(trial)
 
+                if self.quit:
+                    break
+                total_trials += 1
+                trial += 1
         if self.log_metrics:
             self.log_file.close()
         final_time = time.time()
@@ -95,12 +117,18 @@ class Simulator(object):
                 'success': self.env.trial_data['success']
             })
 
-# To do: 3 game loops: testing/training, trials, game frame loops
 
-if __name__=="__main__":
+if __name__ == "__main__":
+    import tensorflow as tf
+
+    graph = tf.Graph()
+
     environment = Environment()
-    agent = Agent(environment)
+    agent = Agent(environment, learning=True, graph=graph)
     environment.set_agent(agent)
     sim = Simulator(environment, display=False, log_metrics=True, optimized=False)
 
-    sim.tensorflow_run(n_test=1)
+    # sim.run(n_test=1)
+    sim.tensorflow_test(graph=graph, n_test=2)
+
+# TODO: verify run() can be removed
