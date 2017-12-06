@@ -56,3 +56,9 @@ class Agent(object):
 
     def get_state(self):
         return self.mem_state
+
+    def save(self, filepath, session=None):
+        return self.ai.save_vars(session, filepath)
+
+    def load(self, filepath, session=None):
+        self.ai.restore_vars(session, filepath)

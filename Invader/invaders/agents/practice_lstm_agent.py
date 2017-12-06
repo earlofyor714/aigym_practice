@@ -76,6 +76,16 @@ class LstmAgent(object):
                 loss = tf.reduce_sum(tf.square(self.nextQ - self.Qout))
             self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(loss)
 
+            # For saving and restoring vars
+            self.saver = tf.train.Saver()
+
+    def save_vars(self, session, filepath):
+        save_path = self.saver.save(session, filepath)
+        return save_path
+
+    def restore_vars(self, session, filepath):
+        self.saver.restore(session, filepath)
+
     def choose_action(self, current_state, session):
         max_indices, allQ = session.run([self.predict, self.Qout], feed_dict={self.lstm_input: current_state})
         indices = np.where(max_indices)

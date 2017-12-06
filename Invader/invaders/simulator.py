@@ -42,14 +42,20 @@ class Simulator(object):
         total_trials = 1
         trial = 1
         start_time = time.time()
+        filepath = os.path.join("../logs/saved_states", "model.ckpt")
 
         with tf.Session(graph=graph) as sess:
             tf.global_variables_initializer().run()
             while True:
                 if not is_testing:
                     is_testing, trial = self.determine_testing_status(trial, total_trials, tolerance)
+                    if is_testing:
+                        self.agent.save(filepath, session=sess)
+                        self.display = True
                 else:
-                    self.display = True
+                    if trial == 1:
+                        self.display = True
+                        self.agent.load(filepath, session=sess)
                     if trial > n_test:
                         break
 
