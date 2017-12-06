@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import math
 import numpy as np
 import pandas as pd
 import os
@@ -34,6 +35,21 @@ def plot_trials(csv):
 
     ax.axhline(xmin=0, xmax=1, y=0, color='black', linestyle='dashed')
     ax.plot(step['trial'], step['average_reward'])
+
+    ###############
+    ### Average reward plot
+    ###############
+
+    ax = plt.subplot2grid((6,6), (0,0), colspan=3, rowspan=4)
+    ax.set_title("10-Trial Rolling Average Reward")
+    ax.set_ylabel("Reward Value")
+    ax.set_xlabel("Trial Number")
+    ax.set_xlim((10, len(training_data)))
+
+    step = training_data[['trial', 'total_reward']].dropna()
+
+    ax.axhline(xmin=0, xmax=1, y=0, color='black', linestyle='dashed')
+    ax.plot(step['trial'], step['total_reward'])
 
     ###############
     ### Parameters Plot
@@ -87,11 +103,14 @@ def plot_trials(csv):
     if len(testing_data) > 0:
         # safety_rating, safety_color = calculate_safety(testing_data)
         reliability_rating, reliability_color = calculate_reliability(testing_data)
+        score_value, score_variance, score_color = calculate_score(testing_data)
 
         # Write success rate
         ax.text(0.40, .9, "{} testing trials simulated.".format(len(testing_data)), fontsize=14, ha='center')
         # ax.text(0.40, 0.7, "Safety Rating:", fontsize=16, ha='center')
         # ax.text(0.40, 0.42, "{}".format(safety_rating), fontsize=40, ha='center', color=safety_color)
+        ax.text(0.40, 0.7, "Score Value:", fontsize=16, ha='center')
+        ax.text(0.40, 0.42, r"{} $\pm$ {}".format(score_value, score_variance), fontsize=40, ha='center', color=score_color)
         ax.text(0.40, 0.27, "Reliability Rating:", fontsize=16, ha='center')
         ax.text(0.40, 0, "{}".format(reliability_rating), fontsize=40, ha='center', color=reliability_color)
 
@@ -105,11 +124,13 @@ def plot_trials(csv):
 
 def append_features_to(data):
     average_reward = (data['net_reward'] / (data['final_time'] - data['initial_time'])).rolling(window=10).mean()
+    total_reward = (data['net_reward']).rolling(window=10).mean()
     reliability_rate = (data['success'] * 100).rolling(window=10).mean()
     epsilon = data['parameters'].apply(lambda x: ast.literal_eval(x)['e'])
     alpha = data['parameters'].apply(lambda x: ast.literal_eval(x)['a'])
 
     new_data = pd.DataFrame({'average_reward': average_reward,
+                             'total_reward': total_reward,
                              'reliability_rate': reliability_rate,
                              'epsilon': epsilon,
                              'alpha': alpha})
@@ -117,6 +138,16 @@ def append_features_to(data):
     result = pd.concat([data, new_data], axis=1)
 
     return result
+
+
+def calculate_score(data):
+    """ Calculates the score during testing. """
+    score_average = data['total_reward'].sum() * 1.0 / len(data)
+    score_average = str(round(score_average, 2))
+    variance = data['total_reward'].var()
+    std = math.sqrt(variance)
+    std = str(round(std, 2))
+    return score_average, std, "green"
 
 
 def calculate_reliability(data):

@@ -15,14 +15,16 @@ class Agent(object):
         input_size = 160*210
         self.ai = LstmAgent(input_size, graph=graph)
 
+    """ 3.472135955 / timer = # trials """
     def reset(self, testing=False):
         if testing:
             self.epsilon = 0
             self.alpha = 0
+            self.ai.alpha = 0
             return
         self.epsilon = 1.0 / (self.timer * self.timer)
         # self.timer += 0.001
-        self.timer += 1.0
+        self.timer += 0.011
 
     def update(self, session=None):
         state = self.build_state(self.env.current_state)

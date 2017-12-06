@@ -31,35 +31,7 @@ class Simulator(object):
             self.log_writer = csv.DictWriter(self.log_file, fieldnames=self.log_fields)
             self.log_writer.writeheader()
 
-    def run(self, tolerance=0.05, n_test=0, n_frames=3000):
-        self.quit = False
-        is_testing = False
-        total_trials = 1
-        trial = 1
-        start_time = time.time()
-
-        while True:
-            if not is_testing:
-                is_testing, trial = self.determine_testing_status(trial, total_trials, tolerance)
-            else:
-                if trial > n_test:
-                    break
-
-            self.env.reset(is_testing)
-            print("trial {}:".format(trial))
-            self.quit = self.env.step(n_frames, is_display=self.display)
-            self.log_trial(trial)
-
-            if self.quit:
-                break
-            total_trials += 1
-            trial += 1
-        if self.log_metrics:
-            self.log_file.close()
-        final_time = time.time()
-        print("Total time: {} seconds".format(final_time - start_time))
-
-    def tensorflow_test(self, graph=None, tolerance=0.05, n_test=0, n_frames=3000):
+    def run(self, graph=None, tolerance=0.05, n_test=0, n_frames=3000):
         import tensorflow as tf
 
         if not graph:
@@ -128,7 +100,4 @@ if __name__ == "__main__":
     environment.set_agent(agent)
     sim = Simulator(environment, display=False, log_metrics=True, optimized=False)
 
-    # sim.run(n_test=1)
-    sim.tensorflow_test(graph=graph, n_test=2)
-
-# TODO: verify run() can be removed
+    sim.run(graph=graph, n_test=10)

@@ -4,8 +4,6 @@ import gym
 class Environment:
     def __init__(self):
         self.env = gym.make('SpaceInvaders-v0')
-        # input_size = 210*160
-        # self.agent = LstmAgent(self.env, input_size)
         self.agent = None
         self.current_state = None
         self.done = False

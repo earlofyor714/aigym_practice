@@ -1,3 +1,4 @@
+import random
 import numpy as np
 import tensorflow as tf
 
@@ -54,6 +55,12 @@ class LstmAgent(object):
                 lstm_state = forget_gate * lstm_state + input_gate * tf.tanh(update)
                 return output_gate * tf.tanh(lstm_state), lstm_state
 
+            def choose_prediction(Qout):
+                max_q = tf.argmax(self.Qout, 1)
+                max_val = Qout[0, max_q[0]]
+                max_indices = tf.equal(max_val, Qout[0])
+                return max_indices
+
             # Variables used for learning LSTM
             self.w = tf.Variable(tf.truncated_normal([self.num_nodes, self.output_size], -0.1, 0.1))
             self.b = tf.Variable(tf.zeros([self.output_size]))
@@ -65,13 +72,15 @@ class LstmAgent(object):
             with tf.control_dependencies([self.saved_output.assign(output),
                                           self.saved_state.assign(state)]):
                 self.Qout = tf.nn.xw_plus_b(tf.concat(self.saved_output, 0), self.w, self.b)
-                self.predict = tf.argmax(self.Qout, 1)
+                self.predict = choose_prediction(self.Qout)
                 loss = tf.reduce_sum(tf.square(self.nextQ - self.Qout))
             self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(loss)
 
     def choose_action(self, current_state, session):
-        a, allQ = session.run([self.predict, self.Qout], feed_dict={self.lstm_input: current_state})
-        return a[0], allQ
+        max_indices, allQ = session.run([self.predict, self.Qout], feed_dict={self.lstm_input: current_state})
+        indices = np.where(max_indices)
+        action = random.choice(indices)
+        return action[0], allQ
 
     def learn(self, state, action, allQ, reward, next_state, sess=None):
         if not sess:
